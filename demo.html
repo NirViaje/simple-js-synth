@@ -105,7 +105,8 @@ pre {
 		</tbody>
 	</table>
 	<br />
-	<script>
+
+<script>
 
 // create our WebAudio context
 var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -220,7 +221,7 @@ function reload(){
 		pool.pop().destroy(); // pop a synth and destroy it
 
 	// recreate the pool based on the new options
-	for (var i = 0; i < 20; i++)
+	// for (var i = 0; i < 20; i++)
 		pool.push(SimpleJSSynth(actx.destination, opts));
 
 	// save the options for later comparison
@@ -240,7 +241,8 @@ setInterval(reload, 200);
 function noteHit(freq, vol){
 	for (var i = 0; i < pool.length; i++){
 		// search the pool of synths that are ready for a new note
-		if (pool[i].isReady()){
+		// if (pool[i].isReady())
+		{
 			// trigger and return the synth
 			pool[i].noteOn(freq, vol);
 			return pool[i];
@@ -248,7 +250,9 @@ function noteHit(freq, vol){
 	}
 	// no synths available, so don't do anything, and return a junk object
 	return {
-		noteOff: function(){},
+		noteOff: function(){
+			// console.log("noteHit: " + i);
+		},
 		bend: function(){}
 	};
 }
@@ -267,7 +271,8 @@ function midiHit(note, vel, down){
 	}
 	// if we're pressing down, play the note
 	if (down){
-		var freq = 440 * Math.pow(2, (note - 69) / 12); // convert note to frequency
+		var freq = noteFreq(note);	//440 * Math.pow(2, (note - 69) / 12); // convert note to frequency
+		// console.log('Note freq: ' + freq);
 		var vol  = vel / 127;                           // convert velocity to volume
 		mididown[note] = noteHit(freq, vol);
 		// if we have a global bend, apply it immediately
@@ -277,6 +282,10 @@ function midiHit(note, vel, down){
 	// if the note is in the range of the UI, then color the appropriate div
 	if (note >= 36 && note < 84)
 		divs[note - 36].style.background = down ? '#aaf' : '#eef';
+}
+
+function noteFreq(note){
+	return 440 * Math.pow(2, (note - 69) / 12);
 }
 
 // called when MIDI sends a bend message
@@ -309,11 +318,19 @@ function midiReject(){
 
 // called when a MIDI message is received
 function midiEvent(ev){
+	// console.log('ev.data[0] & 0xF0: ' + ev.data[0] & 0xF0);
 	if (ev.data.length < 2)
 		return;
 	// look for note on, note off, and pitch bend messages
-	if ((ev.data[0] & 0xF0) == 0x90)
-		midiHit(ev.data[1], ev.data[2], true);
+	// if ((ev.data[0] & 0xF0) == 0x90)
+		// midiHit(ev.data[1], ev.data[2], true);
+	if (ev.data[1] == 0x14){
+		midiHit(midiTone(ev.data[2]), ev.data[0], true);
+		console.log('midiEvent get: ' + ev.data + //', HEX in: ' + ev.data[0].toString(16) + 
+					// ev.data[1].toString(16) + ev.data[2].toString(16) + 
+					', midiTone: ' + midiTone(ev.data[2]) + 
+					', noteFreq: '+ noteFreq(midiTone(ev.data[2])));	//midiEvent get: 176,20,40
+	}
 	else if ((ev.data[0] & 0xF0) == 0x80)
 		midiHit(ev.data[1], 0, false);
 	else if ((ev.data[0] & 0xF0) == 0xE0){
@@ -322,6 +339,56 @@ function midiEvent(ev){
 		else
 			midiBend((ev.data[1] | (ev.data[2] << 7)) * 2 / 0x3FFF - 1);
 	}
+}
+
+function midiTone(CC){
+	Tone = Math.floor(CC) - 36;//	/3) + 42;
+
+			//	C	Db	D	Eb	E	F	Gb	G	Ab	A	Bb	B
+	// toneShift = [0, -1, 1, 0, -1, 0, 0, 0, -1, 1, 0, -1];		//blues major
+	// toneShift = [0, -1, 0, -1, 0, -1, 1, 0, -1, 0, -1, 1];		//Chinese major
+	toneShift = [0, -1, 0, -1, 0, 0, 1, 0, -1, -2, 1, 0];		//Japanese
+
+	i = Tone%12;
+	switch(i){
+		case 0:		//C
+			Tone = Tone + toneShift[i];
+			break;
+		case 1:		//Db
+			Tone = Tone + toneShift[i];
+			break;
+		case 2:		//D
+			Tone = Tone + toneShift[i];
+			break;
+		case 3:		//Eb
+			Tone = Tone + toneShift[i];
+			break;
+		case 4:		//E
+			Tone = Tone + toneShift[i];
+			break;
+		case 5:		//F
+			Tone = Tone + toneShift[i];
+			break;
+		case 6:		//Gb
+			Tone = Tone + toneShift[i];
+			break;
+		case 7:		//G
+			Tone = Tone + toneShift[i];
+			break;
+		case 8:		//Ab
+			Tone = Tone + toneShift[i];
+			break;
+		case 9:		//A
+			Tone = Tone + toneShift[i];
+			break;
+		case 10:	//Bb
+			Tone = Tone + toneShift[i];
+			break;
+		case 11:	//B
+			Tone = Tone + toneShift[i];
+			break;
+	}
+	return Tone;
 }
 
 // request MIDI access
@@ -390,6 +457,27 @@ function MM(){
 	}
 	n();
 }
-	</script>
+
+ 
+document.onkeydown=function(event){ 
+	var e = event || window.event || arguments.callee.caller.arguments[0]; 
+	if(e && e.keyCode==27){ // 按 Esc  
+		//要做的事情 
+		console.log("按 esc"); 
+	} 
+	if(e && e.keyCode==113){ // 按 F2  
+		//要做的事情 
+		console.log("按 f2"); 
+	}             
+	if(e && e.keyCode==13){ // enter 键 
+		//要做的事情 
+		console.log("按 Enter"); 
+	}
+	if (e.keyCode == 86 && e.ctrlKey) {  
+		console.log("你按下了ctrl+V");  
+	}
+ };
+</script>
+
 </body>
 </html>
